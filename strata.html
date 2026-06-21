@@ -88,9 +88,15 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
 .level-meter{flex:1;max-width:90px;height:8px;background:var(--panel-2);border-radius:4px;overflow:hidden;}
 #levelBar{height:100%;width:0%;background:var(--amber);}
 
+.multiplier-row{display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:16px;}
+.mult-label{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:0.04em;}
+.mult-btn{padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-family:var(--mono);font-size:12px;cursor:pointer;}
+.mult-btn.active{background:var(--amber);color:#1a1410;border-color:var(--amber);}
+.mult-btn:disabled{opacity:0.4;cursor:default;}
+
 .rack{display:flex;flex-direction:column;gap:8px;margin-bottom:18px;}
 .layer-row{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;}
-.layer-tag{font-family:var(--mono);font-size:12px;color:var(--amber);width:26px;flex-shrink:0;}
+.layer-tag{font-family:var(--mono);font-size:12px;color:var(--amber);width:auto;min-width:26px;flex-shrink:0;white-space:nowrap;}
 .layer-wave{flex-shrink:0;border-radius:4px;background:var(--panel-2);}
 .layer-controls{display:flex;align-items:center;gap:6px;flex:1;min-width:0;}
 .mini-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:12px;font-family:var(--mono);cursor:pointer;flex-shrink:0;}
@@ -146,6 +152,13 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
         <div class="level-meter" title="Mic input level"><div id="levelBar"></div></div>
       </div>
 
+      <div class="multiplier-row" id="multiplierRow" hidden>
+        <span class="mult-label">next layer:</span>
+        <button class="mult-btn active" data-mult="1">1×</button>
+        <button class="mult-btn" data-mult="2">2×</button>
+        <button class="mult-btn" data-mult="4">4×</button>
+      </div>
+
       <div class="rack" id="rack"></div>
 
       <div class="toolbar">
@@ -167,13 +180,17 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
   let mediaRecorder, recordedChunks = [], recorderOptions;
   let loopDuration = 0;
   let loopStartTime = 0;
-  let pausedOffset = 0;
+  let pausedDisplayPhase = 0; // cosmetic only — actual resume always re-syncs to loopStartTime
   let isPlaying = false;
   let layers = [];
   let nextLayerId = 1;
-  let mode = "idle"; // idle | recordingFirst | ready | armed | recordingOverdub
-  let armTimeoutId = null, autoStopTimeoutId = null;
+  let mode = "idle"; // idle | countIn | recordingFirst | ready | armed | recordingOverdub
+  let selectedMultiplier = 1;
+  let pendingCycleLength = 0;
+  let autoStopTimeoutId = null;
+  let countdownTarget = 0, countdownIntervalId = null, countdownTimeoutId = null, lastBeepInt = null;
   let clickEnabled = true, nextClickTime = 0, clickIntervalId = null;
+  const COUNT_IN_SECONDS = 3;
   const RING_R = 86;
   const RING_CIRC = 2 * Math.PI * RING_R;
 
@@ -192,6 +209,8 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
   const rack = document.getElementById("rack");
   const exportBtn = document.getElementById("exportBtn");
   const clearBtn = document.getElementById("clearBtn");
+  const multiplierRow = document.getElementById("multiplierRow");
+  const multBtns = Array.prototype.slice.call(document.querySelectorAll(".mult-btn"));
   const ringFg = document.getElementById("ringFg");
   ringFg.style.strokeDasharray = RING_CIRC + " " + RING_CIRC;
   ringFg.style.strokeDashoffset = RING_CIRC;
@@ -299,19 +318,32 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     src.buffer = layer.buffer;
     src.loop = true;
     src.loopStart = 0;
-    src.loopEnd = loopDuration;
+    src.loopEnd = layer.cycleLength;
     src.connect(layer.gainNode);
     src.start(when, offset);
     layer.sourceNode = src;
   }
 
-  function startAllLayers(initialOffset) {
+  // Called exactly once — when the first loop finishes recording.
+  function beginPlaybackFromScratch() {
     const lead = 0.05;
     const when = audioCtx.currentTime + lead;
-    loopStartTime = when - initialOffset;
+    loopStartTime = when; // canonical epoch; never changes again this session
+    layers.forEach(function (layer) { startLayerSource(layer, when, 0); });
+    isPlaying = true;
+    startClickScheduler();
+  }
+
+  // Called on resume from pause. loopStartTime is fixed, so every layer's
+  // offset is just re-derived from "how far we are into its own cycle" —
+  // this keeps multi-length (2x/4x) layers correctly phased too.
+  function restartAllLayers() {
+    const lead = 0.05;
+    const when = audioCtx.currentTime + lead;
     layers.forEach(function (layer) {
       if (layer.sourceNode) { try { layer.sourceNode.stop(); } catch (e) {} }
-      startLayerSource(layer, when, initialOffset);
+      const offset = mod(when - loopStartTime, layer.cycleLength);
+      startLayerSource(layer, when, offset);
     });
     isPlaying = true;
     startClickScheduler();
@@ -319,7 +351,7 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
 
   function pausePlayback() {
     if (!isPlaying) return;
-    pausedOffset = mod(audioCtx.currentTime - loopStartTime, loopDuration);
+    pausedDisplayPhase = mod(audioCtx.currentTime - loopStartTime, loopDuration);
     layers.forEach(function (l) {
       if (l.sourceNode) { try { l.sourceNode.stop(); } catch (e) {} l.sourceNode = null; }
     });
@@ -369,18 +401,55 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     osc.start(time);
     osc.stop(time + 0.06);
   }
+  function playCountBeep(time, accent) {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.frequency.value = accent ? 1500 : 1100;
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime(accent ? 0.35 : 0.28, time + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + 0.13);
+    osc.connect(g);
+    g.connect(audioCtx.destination);
+    osc.start(time);
+    osc.stop(time + 0.15);
+  }
+
+  // ---------- count-in (shared by first loop + every overdub) ----------
+  function beginCountdown(targetTime, onComplete) {
+    countdownTarget = targetTime;
+    lastBeepInt = null;
+    if (countdownIntervalId) clearInterval(countdownIntervalId);
+    if (countdownTimeoutId) clearTimeout(countdownTimeoutId);
+    updateCountdownUI();
+    countdownIntervalId = setInterval(updateCountdownUI, 100);
+    const ms = Math.max(0, (targetTime - audioCtx.currentTime) * 1000);
+    countdownTimeoutId = setTimeout(function () {
+      clearInterval(countdownIntervalId);
+      countdownIntervalId = null;
+      onComplete();
+    }, ms);
+  }
+  function updateCountdownUI() {
+    const remaining = countdownTarget - audioCtx.currentTime;
+    const secs = Math.max(0, Math.ceil(remaining));
+    mainBtn.textContent = secs > 0 ? String(secs) : "●";
+    if (secs <= COUNT_IN_SECONDS && secs >= 1 && secs !== lastBeepInt) {
+      lastBeepInt = secs;
+      playCountBeep(audioCtx.currentTime, secs === 1);
+    }
+  }
 
   // ---------- layers ----------
-  function addLayer(buffer) {
+  function addLayer(buffer, cycleLength) {
     const id = nextLayerId++;
     const gainNode = audioCtx.createGain();
     gainNode.connect(masterGain);
-    const layer = { id: id, buffer: buffer, gainNode: gainNode, sourceNode: null, muted: false, solo: false, volume: 1 };
+    const layer = { id: id, buffer: buffer, cycleLength: cycleLength, gainNode: gainNode, sourceNode: null, muted: false, solo: false, volume: 1 };
     layers.push(layer);
     if (isPlaying) {
       const lead = 0.05;
       const when = audioCtx.currentTime + lead;
-      const offset = mod(when - loopStartTime, loopDuration);
+      const offset = mod(when - loopStartTime, cycleLength);
       startLayerSource(layer, when, offset);
     }
     renderLayerRow(layer);
@@ -404,8 +473,10 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     const row = document.createElement("div");
     row.className = "layer-row";
     row.id = "row-" + layer.id;
+    const mult = Math.round(layer.cycleLength / loopDuration);
+    const tag = "L" + layer.id + (mult > 1 ? " · " + mult + "×" : "");
     row.innerHTML =
-      '<div class="layer-tag">L' + layer.id + '</div>' +
+      '<div class="layer-tag">' + tag + '</div>' +
       '<canvas class="layer-wave" width="120" height="34"></canvas>' +
       '<div class="layer-controls">' +
         '<button class="mini-btn mute-btn" aria-label="Mute layer ' + layer.id + '">M</button>' +
@@ -435,6 +506,12 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
   }
 
   // ---------- recording: first loop ----------
+  function beginFirstLoopCountIn() {
+    if (mode !== "idle") return;
+    mode = "countIn";
+    renderMode();
+    beginCountdown(audioCtx.currentTime + COUNT_IN_SECONDS, startFirstLoopRecording);
+  }
   function startFirstLoopRecording() {
     mode = "recordingFirst";
     renderMode();
@@ -459,8 +536,9 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
         return;
       }
       loopDuration = decoded.duration;
-      addLayer(decoded);
-      startAllLayers(0);
+      addLayer(decoded, loopDuration);
+      beginPlaybackFromScratch();
+      multiplierRow.hidden = false;
       mode = "ready";
       renderMode();
     } catch (err) {
@@ -474,13 +552,15 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
   // ---------- recording: overdub layers ----------
   function armOverdub() {
     if (mode !== "ready") return;
+    if (!isPlaying) restartAllLayers();
+    pendingCycleLength = selectedMultiplier * loopDuration;
     const now = audioCtx.currentTime;
-    const phase = mod(now - loopStartTime, loopDuration);
-    let wait = loopDuration - phase;
-    if (wait <= 0) wait = loopDuration;
+    const phase = mod(now - loopStartTime, pendingCycleLength);
+    let wait = pendingCycleLength - phase;
+    while (wait < COUNT_IN_SECONDS) wait += pendingCycleLength;
     mode = "armed";
     renderMode();
-    armTimeoutId = setTimeout(startOverdubRecording, wait * 1000);
+    beginCountdown(now + wait, startOverdubRecording);
   }
   function startOverdubRecording() {
     mode = "recordingOverdub";
@@ -492,15 +572,15 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     mediaRecorder.start();
     autoStopTimeoutId = setTimeout(function () {
       if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
-    }, loopDuration * 1000);
+    }, pendingCycleLength * 1000);
   }
   async function onOverdubStop() {
     try {
       const blob = new Blob(recordedChunks, { type: (recordedChunks[0] && recordedChunks[0].type) || "audio/webm" });
       const arrayBuf = await blob.arrayBuffer();
       const decoded = await audioCtx.decodeAudioData(arrayBuf);
-      const conformed = conformBuffer(decoded, loopDuration);
-      addLayer(conformed);
+      const conformed = conformBuffer(decoded, pendingCycleLength);
+      addLayer(conformed, pendingCycleLength);
       mode = "ready";
       renderMode();
     } catch (err) {
@@ -510,14 +590,15 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
       setStatus("Couldn't capture that layer — try again.");
     }
   }
-  function cancelOverdub() {
-    if (armTimeoutId) { clearTimeout(armTimeoutId); armTimeoutId = null; }
+  function cancelPending() {
+    if (countdownIntervalId) { clearInterval(countdownIntervalId); countdownIntervalId = null; }
+    if (countdownTimeoutId) { clearTimeout(countdownTimeoutId); countdownTimeoutId = null; }
     if (autoStopTimeoutId) { clearTimeout(autoStopTimeoutId); autoStopTimeoutId = null; }
     if (mediaRecorder && mediaRecorder.state === "recording") {
       mediaRecorder.onstop = null;
       mediaRecorder.stop();
     }
-    mode = "ready";
+    mode = loopDuration > 0 ? "ready" : "idle";
     renderMode();
   }
 
@@ -526,11 +607,19 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     mainBtn.classList.remove("state-idle", "state-rec", "state-ready", "state-armed");
     cancelBtn.hidden = true;
     mainBtn.disabled = false;
+    multBtns.forEach(function (b) { b.disabled = mode !== "ready"; });
     switch (mode) {
       case "idle":
         mainBtn.textContent = "● REC";
         mainBtn.classList.add("state-idle");
-        setStatus("Record your first loop — tap REC, play your beat, tap again to finish.");
+        setStatus("Tap REC, then play your beat after the count-in. Tap again to finish the loop.");
+        playPauseBtn.disabled = true;
+        break;
+      case "countIn":
+        mainBtn.disabled = true;
+        mainBtn.classList.add("state-armed");
+        setStatus("Get ready... recording starts when it hits zero.");
+        cancelBtn.hidden = false;
         playPauseBtn.disabled = true;
         break;
       case "recordingFirst":
@@ -540,7 +629,7 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
         playPauseBtn.disabled = true;
         break;
       case "ready":
-        mainBtn.textContent = "+ LAYER";
+        mainBtn.textContent = "+ LAYER" + (selectedMultiplier > 1 ? " (" + selectedMultiplier + "×)" : "");
         mainBtn.classList.add("state-ready");
         setStatus(isPlaying
           ? "Loop running — " + layers.length + (layers.length === 1 ? " layer" : " layers") + ". Tap + LAYER to add another."
@@ -549,10 +638,9 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
         playPauseBtn.textContent = isPlaying ? "⏸" : "⏵";
         break;
       case "armed":
-        mainBtn.textContent = "···";
         mainBtn.disabled = true;
         mainBtn.classList.add("state-armed");
-        setStatus("Get ready — recording starts at the top of the loop.");
+        setStatus("Get ready... recording starts when it hits zero.");
         cancelBtn.hidden = false;
         playPauseBtn.disabled = true;
         break;
@@ -578,7 +666,8 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     loopDuration = 0;
     loopStartTime = 0;
     isPlaying = false;
-    pausedOffset = 0;
+    pausedDisplayPhase = 0;
+    multiplierRow.hidden = true;
     stopClickScheduler();
     mode = "idle";
     renderMode();
@@ -603,7 +692,7 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
       src.buffer = l.buffer;
       src.loop = true;
       src.loopStart = 0;
-      src.loopEnd = loopDuration;
+      src.loopEnd = l.cycleLength;
       const gain = offlineCtx.createGain();
       gain.gain.value = g;
       src.connect(gain).connect(offlineCtx.destination);
@@ -641,7 +730,7 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
       levelBar.style.width = Math.min(100, peak * 140) + "%";
     }
     if (loopDuration > 0) {
-      const phase = isPlaying ? mod(audioCtx.currentTime - loopStartTime, loopDuration) : pausedOffset;
+      const phase = isPlaying ? mod(audioCtx.currentTime - loopStartTime, loopDuration) : pausedDisplayPhase;
       const frac = phase / loopDuration;
       ringFg.style.strokeDashoffset = String(RING_CIRC * (1 - frac));
       readout.textContent = fmt(phase) + " / " + fmt(loopDuration);
@@ -653,7 +742,13 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     try {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       await audioCtx.resume();
-      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false
+        }
+      });
       masterGain = audioCtx.createGain();
       masterGain.gain.value = 1;
       masterGain.connect(audioCtx.destination);
@@ -675,19 +770,27 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
   });
 
   mainBtn.addEventListener("click", function () {
-    if (mode === "idle") startFirstLoopRecording();
+    if (mode === "idle") beginFirstLoopCountIn();
     else if (mode === "recordingFirst") stopFirstLoopRecording();
     else if (mode === "ready") armOverdub();
   });
-  cancelBtn.addEventListener("click", cancelOverdub);
+  cancelBtn.addEventListener("click", cancelPending);
   playPauseBtn.addEventListener("click", function () {
     if (mode !== "ready") return;
-    if (isPlaying) pausePlayback(); else startAllLayers(pausedOffset);
+    if (isPlaying) pausePlayback(); else restartAllLayers();
     renderMode();
   });
   clickToggle.addEventListener("change", function (e) { clickEnabled = e.target.checked; });
   exportBtn.addEventListener("click", exportSong);
   clearBtn.addEventListener("click", function () { clearAll(false); });
+  multBtns.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      if (mode !== "ready") return;
+      selectedMultiplier = parseInt(btn.getAttribute("data-mult"), 10);
+      multBtns.forEach(function (b) { b.classList.toggle("active", b === btn); });
+      renderMode();
+    });
+  });
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").catch(function () {});
