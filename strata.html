@@ -58,9 +58,10 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
   position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   width:128px;height:128px;border-radius:50%;border:none;cursor:pointer;
   font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:0.03em;
-  color:#fff;display:flex;align-items:center;justify-content:center;
+  color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
   box-shadow:0 8px 24px rgba(0,0,0,0.4);
 }
+#mainBtnSecondary{font-family:var(--mono);font-size:11px;font-weight:500;opacity:0.85;letter-spacing:0.02em;}
 .main-btn:focus-visible{outline:3px solid var(--ink);outline-offset:4px;}
 .main-btn:disabled{cursor:default;}
 .state-idle, .state-rec{background:var(--rec);}
@@ -164,7 +165,10 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
           <circle class="ring-track" cx="100" cy="100" r="86"></circle>
           <circle class="ring-fg" id="ringFg" cx="100" cy="100" r="86" transform="rotate(-90 100 100)"></circle>
         </svg>
-        <button id="mainBtn" class="main-btn state-idle">● REC</button>
+        <button id="mainBtn" class="main-btn state-idle">
+          <span id="mainBtnPrimary">● REC</span>
+          <span id="mainBtnSecondary"></span>
+        </button>
       </div>
       <div style="display:flex;justify-content:center;">
         <button id="cancelBtn" class="cancel-btn" hidden>Cancel</button>
@@ -228,6 +232,7 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
   let mode = "idle"; // idle | countIn | recordingFirst | ready | armed | recordingOverdub
   let selectedMultiplier = 1;
   let pendingCycleLength = 0;
+  let recordingFirstStartTime = 0;
   let autoStopTimeoutId = null;
   let countdownTarget = 0, countdownIntervalId = null, countdownTimeoutId = null, lastBeepInt = null;
   let clickEnabled = true, nextClickTime = 0, clickIntervalId = null;
@@ -244,6 +249,8 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
   const permScreen = document.getElementById("permission-screen");
   const mainScreen = document.getElementById("main-screen");
   const mainBtn = document.getElementById("mainBtn");
+  const mainBtnPrimary = document.getElementById("mainBtnPrimary");
+  const mainBtnSecondary = document.getElementById("mainBtnSecondary");
   const cancelBtn = document.getElementById("cancelBtn");
   const readout = document.getElementById("readout");
   const statusEl = document.getElementById("status");
@@ -633,7 +640,8 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
   function updateCountdownUI() {
     const remaining = countdownTarget - audioCtx.currentTime;
     const secs = Math.max(0, Math.ceil(remaining));
-    mainBtn.textContent = secs > 0 ? String(secs) : "●";
+    mainBtnPrimary.textContent = secs > 0 ? String(secs) : "●";
+    mainBtnSecondary.textContent = secs > 0 ? "get ready" : "";
     if (secs <= COUNT_IN_SECONDS && secs >= 1 && secs !== lastBeepInt) {
       lastBeepInt = secs;
       playCountBeep(audioCtx.currentTime, secs === 1);
@@ -683,8 +691,8 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
   function layerTagText(layer) {
     const mult = layer.cycleLength / loopDuration;
     const base = layer.name || ("L" + layer.id);
-    if (Math.abs(mult - 1) < 0.001) return base;
-    return base + " · " + formatMultiplier(mult) + "×";
+    const suffix = Math.abs(mult - 1) < 0.001 ? "" : " · " + formatMultiplier(mult) + "×";
+    return base + suffix + " ✎";
   }
 
   function renderLayerRow(layer) {
@@ -755,6 +763,7 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     mode = "recordingFirst";
     renderMode();
     vibrate(40);
+    recordingFirstStartTime = audioCtx.currentTime;
     recordedChunks = [];
     mediaRecorder = new MediaRecorder(micStream, recorderOptions);
     mediaRecorder.ondataavailable = function (e) { if (e.data.size > 0) recordedChunks.push(e.data); };
@@ -859,7 +868,8 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     clearBtn.disabled = busy;
     switch (mode) {
       case "idle":
-        mainBtn.textContent = "● REC";
+        mainBtnPrimary.textContent = "● REC";
+        mainBtnSecondary.textContent = "";
         mainBtn.classList.add("state-idle");
         setStatus("Tap REC, then play your beat after the count-in. Tap again to finish the loop.");
         playPauseBtn.disabled = true;
@@ -872,13 +882,15 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
         playPauseBtn.disabled = true;
         break;
       case "recordingFirst":
-        mainBtn.textContent = "■ STOP";
+        mainBtnPrimary.textContent = fmt(0);
+        mainBtnSecondary.textContent = "tap to stop";
         mainBtn.classList.add("state-rec");
         setStatus("Recording your loop... tap STOP when you're done.");
         playPauseBtn.disabled = true;
         break;
       case "ready":
-        mainBtn.textContent = "+ LAYER" + (selectedMultiplier !== 1 ? " (" + formatMultiplier(selectedMultiplier) + "×)" : "");
+        mainBtnPrimary.textContent = "+ LAYER" + (selectedMultiplier !== 1 ? " (" + formatMultiplier(selectedMultiplier) + "×)" : "");
+        mainBtnSecondary.textContent = "";
         mainBtn.classList.add("state-ready");
         setStatus(isPlaying
           ? "Loop running — " + layers.length + (layers.length === 1 ? " layer" : " layers") + ". Tap + LAYER to add another."
@@ -894,7 +906,8 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
         playPauseBtn.disabled = true;
         break;
       case "recordingOverdub":
-        mainBtn.textContent = "● REC";
+        mainBtnPrimary.textContent = "● REC";
+        mainBtnSecondary.textContent = "layer " + (layers.length + 1);
         mainBtn.disabled = true;
         mainBtn.classList.add("state-rec");
         setStatus("Recording layer " + (layers.length + 1) + "...");
@@ -921,6 +934,7 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     rack.innerHTML = "";
     loopDuration = 0;
     loopStartTime = 0;
+    nextLayerId = 1;
     isPlaying = false;
     pausedDisplayPhase = 0;
     multiplierRow.hidden = true;
@@ -997,6 +1011,16 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
       const frac = phase / loopDuration;
       ringFg.style.strokeDashoffset = String(RING_CIRC * (1 - frac));
       readout.textContent = fmt(phase) + " / " + fmt(loopDuration);
+    } else {
+      // No established loop length yet — a progress ring would be meaningless here,
+      // so keep it empty and show a live elapsed counter instead while recording.
+      ringFg.style.strokeDashoffset = String(RING_CIRC);
+      readout.textContent = "";
+      if (mode === "recordingFirst") {
+        const elapsed = audioCtx.currentTime - recordingFirstStartTime;
+        mainBtnPrimary.textContent = fmt(elapsed);
+        mainBtnSecondary.textContent = "tap to stop";
+      }
     }
   }
 
