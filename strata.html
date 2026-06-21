@@ -90,22 +90,23 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
 .level-meter{flex:1;max-width:90px;height:8px;background:var(--panel-2);border-radius:4px;overflow:hidden;}
 #levelBar{height:100%;width:0%;background:var(--amber);}
 
-.multiplier-row{display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:16px;}
+.multiplier-row{display:flex;align-items:center;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:16px;}
 .mult-label{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:0.04em;}
-.mult-btn{padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-family:var(--mono);font-size:12px;cursor:pointer;}
+.mult-btn{padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-family:var(--mono);font-size:12px;cursor:pointer;}
 .mult-btn.active{background:var(--amber);color:#1a1410;border-color:var(--amber);}
 .mult-btn:disabled{opacity:0.4;cursor:default;}
 
 .rack{display:flex;flex-direction:column;gap:10px;margin-bottom:18px;}
-.layer-row{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:10px;padding:10px 10px;}
-.layer-tag{font-family:var(--mono);font-size:12px;width:auto;min-width:26px;flex-shrink:0;white-space:nowrap;cursor:pointer;border-bottom:1px dotted currentColor;padding-bottom:1px;}
-.layer-wave{flex-shrink:0;border-radius:4px;background:var(--panel-2);}
-.layer-controls{display:flex;align-items:center;gap:8px;flex:1;min-width:0;}
+.layer-row{display:flex;flex-direction:column;gap:8px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:10px;padding:10px 10px;}
+.layer-row-top{display:flex;align-items:center;gap:10px;}
+.layer-tag{font-family:var(--mono);font-size:12px;flex-shrink:0;white-space:nowrap;cursor:pointer;border-bottom:1px dotted currentColor;padding-bottom:1px;}
+.layer-wave{flex-shrink:0;height:34px;border-radius:4px;background:var(--panel-2);}
+.layer-row-bottom{display:flex;align-items:center;gap:8px;}
 .mini-btn{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:13px;font-family:var(--mono);cursor:pointer;flex-shrink:0;}
 .mini-btn.active.mute-btn{background:var(--rec);color:#fff;border-color:var(--rec);}
 .mini-btn.active.solo-btn{background:var(--amber);color:#1a1410;border-color:var(--amber);}
 .vol-slider{flex:1;min-width:0;height:34px;accent-color:var(--amber);}
-.del-btn{color:var(--muted);font-size:17px;}
+.del-btn{color:var(--muted);font-size:17px;margin-left:auto;}
 .del-btn:hover{color:var(--rec);}
 
 .toolbar{display:flex;gap:8px;}
@@ -154,7 +155,7 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
       <p>Strata records a loop of whatever you play, then lets you keep recording new layers on top of it &mdash; in time, automatically &mdash; so a song builds up one pass at a time.</p>
       <button id="startBtn">Enable microphone</button>
       <div id="perm-error"></div>
-      <p style="font-size:12px;">Headphones recommended, so the loop playing back doesn't bleed into your next recording.</p>
+      <p style="font-size:12px;">Headphones strongly recommended — without them, each new layer also picks up everything already playing, and it compounds with every layer you add.</p>
     </section>
 
     <section id="main-screen" hidden>
@@ -181,9 +182,11 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
       </div>
 
       <div class="multiplier-row" id="multiplierRow" hidden>
-        <span class="mult-label">next layer:</span>
+        <span class="mult-label">length:</span>
+        <button class="mult-btn" data-mult="0.5">½×</button>
         <button class="mult-btn active" data-mult="1">1×</button>
         <button class="mult-btn" data-mult="2">2×</button>
+        <button class="mult-btn" data-mult="3">3×</button>
         <button class="mult-btn" data-mult="4">4×</button>
       </div>
 
@@ -322,6 +325,13 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
   });
 
   function colorForLayer(id) { return LAYER_COLORS[(id - 1) % LAYER_COLORS.length]; }
+
+  function duckMaster() {
+    if (masterGain) masterGain.gain.setTargetAtTime(parseFloat(masterVol.value) * 0.45, audioCtx.currentTime, 0.05);
+  }
+  function unduckMaster() {
+    if (masterGain) masterGain.gain.setTargetAtTime(parseFloat(masterVol.value), audioCtx.currentTime, 0.05);
+  }
   function pickRecorderOptions() {
     const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/aac"];
     for (const c of candidates) {
@@ -496,7 +506,7 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     if (layers.length > 0) {
       loopStartTime = audioCtx.currentTime;
       multiplierRow.hidden = false;
-      multBtns.forEach(function (b) { b.classList.toggle("active", parseInt(b.getAttribute("data-mult"), 10) === selectedMultiplier); });
+      multBtns.forEach(function (b) { b.classList.toggle("active", parseFloat(b.getAttribute("data-mult")) === selectedMultiplier); });
       updateMixGains();
       mode = "ready";
       renderMode();
@@ -666,10 +676,15 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     deleteLayer(layers[layers.length - 1].id);
   }
 
+  function formatMultiplier(mult) {
+    if (Math.abs(mult - 0.5) < 0.001) return "½";
+    return String(Math.round(mult * 100) / 100);
+  }
   function layerTagText(layer) {
-    const mult = Math.round(layer.cycleLength / loopDuration);
+    const mult = layer.cycleLength / loopDuration;
     const base = layer.name || ("L" + layer.id);
-    return base + (mult > 1 ? " · " + mult + "×" : "");
+    if (Math.abs(mult - 1) < 0.001) return base;
+    return base + " · " + formatMultiplier(mult) + "×";
   }
 
   function renderLayerRow(layer) {
@@ -679,13 +694,15 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     const color = colorForLayer(layer.id);
     row.style.borderLeftColor = color;
     row.innerHTML =
-      '<div class="layer-tag" style="color:' + color + '">' + layerTagText(layer) + '</div>' +
-      '<canvas class="layer-wave" width="120" height="34"></canvas>' +
-      '<div class="layer-controls">' +
+      '<div class="layer-row-top">' +
+        '<div class="layer-tag" style="color:' + color + '">' + layerTagText(layer) + '</div>' +
+        '<canvas class="layer-wave" width="120" height="34"></canvas>' +
+        '<button class="mini-btn del-btn" aria-label="Delete layer ' + layer.id + '">×</button>' +
+      '</div>' +
+      '<div class="layer-row-bottom">' +
         '<button class="mini-btn mute-btn" aria-label="Mute layer ' + layer.id + '">M</button>' +
         '<button class="mini-btn solo-btn" aria-label="Solo layer ' + layer.id + '">S</button>' +
         '<input type="range" min="0" max="1.4" step="0.01" value="' + layer.volume + '" class="vol-slider" aria-label="Volume for layer ' + layer.id + '">' +
-        '<button class="mini-btn del-btn" aria-label="Delete layer ' + layer.id + '">×</button>' +
       '</div>';
     rack.insertBefore(row, rack.firstChild);
     drawWaveform(row.querySelector(".layer-wave"), layer.buffer, color);
@@ -776,6 +793,7 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
   function armOverdub() {
     if (mode !== "ready") return;
     if (!isPlaying) restartAllLayers();
+    duckMaster();
     pendingCycleLength = selectedMultiplier * loopDuration;
     const now = audioCtx.currentTime;
     const phase = mod(now - loopStartTime, pendingCycleLength);
@@ -805,10 +823,12 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
       const decoded = await audioCtx.decodeAudioData(arrayBuf);
       const conformed = conformBuffer(decoded, pendingCycleLength);
       addLayer(conformed, pendingCycleLength);
+      unduckMaster();
       mode = "ready";
       renderMode();
     } catch (err) {
       console.error(err);
+      unduckMaster();
       mode = "ready";
       renderMode();
       setStatus("Couldn't capture that layer — try again.");
@@ -822,6 +842,7 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
       mediaRecorder.onstop = null;
       mediaRecorder.stop();
     }
+    unduckMaster();
     mode = loopDuration > 0 ? "ready" : "idle";
     renderMode();
   }
@@ -857,7 +878,7 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
         playPauseBtn.disabled = true;
         break;
       case "ready":
-        mainBtn.textContent = "+ LAYER" + (selectedMultiplier > 1 ? " (" + selectedMultiplier + "×)" : "");
+        mainBtn.textContent = "+ LAYER" + (selectedMultiplier !== 1 ? " (" + formatMultiplier(selectedMultiplier) + "×)" : "");
         mainBtn.classList.add("state-ready");
         setStatus(isPlaying
           ? "Loop running — " + layers.length + (layers.length === 1 ? " layer" : " layers") + ". Tap + LAYER to add another."
@@ -986,7 +1007,7 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
       await audioCtx.resume();
       micStream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          echoCancellation: false,
+          echoCancellation: true,
           noiseSuppression: false,
           autoGainControl: false
         }
@@ -1034,7 +1055,7 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
   multBtns.forEach(function (btn) {
     btn.addEventListener("click", function () {
       if (mode !== "ready") return;
-      selectedMultiplier = parseInt(btn.getAttribute("data-mult"), 10);
+      selectedMultiplier = parseFloat(btn.getAttribute("data-mult"));
       multBtns.forEach(function (b) { b.classList.toggle("active", b === btn); });
       renderMode();
     });
