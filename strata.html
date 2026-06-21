@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Strata — Loop Layers</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#15121b">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#15121b;
+  --panel:#1f1a28;
+  --panel-2:#241f30;
+  --ink:#ECE7F5;
+  --muted:#8d84a0;
+  --rec:#ff5470;
+  --amber:#ffc857;
+  --line:#332c42;
+  --mono:'JetBrains Mono', monospace;
+  --display:'Space Grotesk', sans-serif;
+  --body:'Inter', sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background: radial-gradient(circle at 50% -10%, #221c2c 0%, #15121b 55%, #100d15 100%);
+  color: var(--ink);
+  font-family: var(--body);
+  min-height: 100vh;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+#app{max-width:480px;margin:0 auto;padding:20px 18px 32px;}
+header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bottom:6px;}
+.wordmark{font-family:var(--display);font-weight:700;font-size:28px;letter-spacing:0.06em;}
+.tagline{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;}
+
+#permission-screen{display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center;padding:56px 12px;}
+#permission-screen p{color:var(--muted);font-size:14px;line-height:1.55;max-width:320px;}
+#startBtn{
+  background:var(--amber);color:#1a1410;border:none;border-radius:999px;
+  padding:16px 36px;font-family:var(--display);font-weight:700;font-size:16px;
+  letter-spacing:0.04em;cursor:pointer;
+}
+#startBtn:focus-visible{outline:3px solid var(--ink);outline-offset:3px;}
+#perm-error{color:var(--rec);font-size:13px;min-height:18px;max-width:300px;line-height:1.4;}
+
+.hero{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:14px 0 6px;}
+.ring{display:block;}
+.ring-track{fill:none;stroke:var(--line);stroke-width:6;}
+.ring-fg{fill:none;stroke:var(--amber);stroke-width:6;stroke-linecap:round;}
+.main-btn{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:128px;height:128px;border-radius:50%;border:none;cursor:pointer;
+  font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:0.03em;
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 8px 24px rgba(0,0,0,0.4);
+}
+.main-btn:focus-visible{outline:3px solid var(--ink);outline-offset:4px;}
+.main-btn:disabled{cursor:default;}
+.state-idle, .state-rec{background:var(--rec);}
+.state-ready, .state-armed{background:var(--amber);color:#1a1410;}
+@media not (prefers-reduced-motion: reduce){
+  .state-rec, .state-armed{animation:pulse 1s ease-in-out infinite;}
+}
+@keyframes pulse{0%,100%{box-shadow:0 8px 24px rgba(255,84,112,0.25);}50%{box-shadow:0 8px 36px rgba(255,84,112,0.55);}}
+
+.cancel-btn{
+  margin-top:14px;background:none;border:1px solid var(--line);color:var(--muted);
+  border-radius:999px;padding:6px 18px;font-family:var(--body);font-size:13px;cursor:pointer;
+}
+.readout{font-family:var(--mono);font-size:15px;color:var(--ink);margin-top:12px;letter-spacing:0.02em;}
+.status{font-size:13px;color:var(--muted);text-align:center;max-width:320px;min-height:34px;margin:6px auto 0;line-height:1.45;}
+
+.transport{display:flex;align-items:center;gap:14px;justify-content:center;margin:12px 0 18px;}
+#playPauseBtn{
+  width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--panel);
+  color:var(--ink);font-size:16px;cursor:pointer;flex-shrink:0;
+}
+#playPauseBtn:disabled{opacity:0.35;cursor:default;}
+#playPauseBtn:focus-visible{outline:2px solid var(--amber);}
+.click-toggle{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);font-family:var(--mono);white-space:nowrap;}
+.level-meter{flex:1;max-width:90px;height:8px;background:var(--panel-2);border-radius:4px;overflow:hidden;}
+#levelBar{height:100%;width:0%;background:var(--amber);}
+
+.rack{display:flex;flex-direction:column;gap:8px;margin-bottom:18px;}
+.layer-row{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;}
+.layer-tag{font-family:var(--mono);font-size:12px;color:var(--amber);width:26px;flex-shrink:0;}
+.layer-wave{flex-shrink:0;border-radius:4px;background:var(--panel-2);}
+.layer-controls{display:flex;align-items:center;gap:6px;flex:1;min-width:0;}
+.mini-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:12px;font-family:var(--mono);cursor:pointer;flex-shrink:0;}
+.mini-btn.active.mute-btn{background:var(--rec);color:#fff;border-color:var(--rec);}
+.mini-btn.active.solo-btn{background:var(--amber);color:#1a1410;border-color:var(--amber);}
+.vol-slider{flex:1;min-width:0;accent-color:var(--amber);}
+.del-btn{color:var(--muted);font-size:15px;}
+.del-btn:hover{color:var(--rec);}
+
+.toolbar{display:flex;gap:10px;}
+.toolbar button{
+  flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
+  color:var(--ink);font-family:var(--body);font-weight:600;font-size:13px;cursor:pointer;
+}
+.toolbar button:hover{border-color:var(--amber);}
+.toolbar button:focus-visible{outline:2px solid var(--amber);}
+.hint{font-size:11px;color:var(--muted);text-align:center;margin-top:16px;line-height:1.6;}
+[hidden]{display:none !important;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="wordmark">STRATA</div>
+    <div class="tagline">loop · layer · build</div>
+  </header>
+
+  <main>
+    <section id="permission-screen">
+      <p>Strata records a loop of whatever you play, then lets you keep recording new layers on top of it &mdash; in time, automatically &mdash; so a song builds up one pass at a time.</p>
+      <button id="startBtn">Enable microphone</button>
+      <div id="perm-error"></div>
+      <p style="font-size:12px;">Headphones recommended, so the loop playing back doesn't bleed into your next recording.</p>
+    </section>
+
+    <section id="main-screen" hidden>
+      <div class="hero">
+        <svg class="ring" viewBox="0 0 200 200" width="220" height="220" aria-hidden="true">
+          <circle class="ring-track" cx="100" cy="100" r="86"></circle>
+          <circle class="ring-fg" id="ringFg" cx="100" cy="100" r="86" transform="rotate(-90 100 100)"></circle>
+        </svg>
+        <button id="mainBtn" class="main-btn state-idle">● REC</button>
+      </div>
+      <div style="display:flex;justify-content:center;">
+        <button id="cancelBtn" class="cancel-btn" hidden>Cancel</button>
+      </div>
+      <div class="readout" id="readout" style="text-align:center;">0:00.0 / —</div>
+      <div class="status" id="status" aria-live="polite"></div>
+
+      <div class="transport">
+        <button id="playPauseBtn" disabled>⏵</button>
+        <label class="click-toggle"><input type="checkbox" id="clickToggle" checked> click</label>
+        <div class="level-meter" title="Mic input level"><div id="levelBar"></div></div>
+      </div>
+
+      <div class="rack" id="rack"></div>
+
+      <div class="toolbar">
+        <button id="exportBtn">Export WAV</button>
+        <button id="clearBtn">Clear all</button>
+      </div>
+
+      <p class="hint">Nothing here is saved automatically &mdash; export your song as a WAV before you close this tab. Deleting a layer doesn't change the loop length, so it's safe to redo any pass.</p>
+    </section>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- state ----------
+  let audioCtx, micStream, masterGain, analyser, levelData;
+  let mediaRecorder, recordedChunks = [], recorderOptions;
+  let loopDuration = 0;
+  let loopStartTime = 0;
+  let pausedOffset = 0;
+  let isPlaying = false;
+  let layers = [];
+  let nextLayerId = 1;
+  let mode = "idle"; // idle | recordingFirst | ready | armed | recordingOverdub
+  let armTimeoutId = null, autoStopTimeoutId = null;
+  let clickEnabled = true, nextClickTime = 0, clickIntervalId = null;
+  const RING_R = 86;
+  const RING_CIRC = 2 * Math.PI * RING_R;
+
+  // ---------- dom ----------
+  const startBtn = document.getElementById("startBtn");
+  const permError = document.getElementById("perm-error");
+  const permScreen = document.getElementById("permission-screen");
+  const mainScreen = document.getElementById("main-screen");
+  const mainBtn = document.getElementById("mainBtn");
+  const cancelBtn = document.getElementById("cancelBtn");
+  const readout = document.getElementById("readout");
+  const statusEl = document.getElementById("status");
+  const playPauseBtn = document.getElementById("playPauseBtn");
+  const clickToggle = document.getElementById("clickToggle");
+  const levelBar = document.getElementById("levelBar");
+  const rack = document.getElementById("rack");
+  const exportBtn = document.getElementById("exportBtn");
+  const clearBtn = document.getElementById("clearBtn");
+  const ringFg = document.getElementById("ringFg");
+  ringFg.style.strokeDasharray = RING_CIRC + " " + RING_CIRC;
+  ringFg.style.strokeDashoffset = RING_CIRC;
+
+  // ---------- helpers ----------
+  function mod(a, n) { return ((a % n) + n) % n; }
+  function fmt(s) {
+    const m = Math.floor(s / 60);
+    const sec = (s - m * 60).toFixed(1).padStart(4, "0");
+    return m + ":" + sec;
+  }
+  function setStatus(msg) { statusEl.textContent = msg; }
+  function pickRecorderOptions() {
+    const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/aac"];
+    for (const c of candidates) {
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) {
+        return { mimeType: c };
+      }
+    }
+    return undefined;
+  }
+
+  function conformBuffer(buffer, targetDuration) {
+    const targetLength = Math.round(targetDuration * buffer.sampleRate);
+    if (buffer.length === targetLength) return buffer;
+    const out = audioCtx.createBuffer(buffer.numberOfChannels, targetLength, buffer.sampleRate);
+    for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+      const src = buffer.getChannelData(ch);
+      const dst = out.getChannelData(ch);
+      const len = Math.min(src.length, targetLength);
+      dst.set(src.subarray(0, len));
+    }
+    return out;
+  }
+
+  function encodeWav(audioBuffer) {
+    const numChannels = audioBuffer.numberOfChannels;
+    const sampleRate = audioBuffer.sampleRate;
+    const numFrames = audioBuffer.length;
+    const blockAlign = numChannels * 2;
+    const dataSize = numFrames * blockAlign;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+    function writeStr(offset, str) {
+      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    }
+    writeStr(0, "RIFF");
+    view.setUint32(4, 36 + dataSize, true);
+    writeStr(8, "WAVE");
+    writeStr(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, "data");
+    view.setUint32(40, dataSize, true);
+    const channelData = [];
+    for (let ch = 0; ch < numChannels; ch++) channelData.push(audioBuffer.getChannelData(ch));
+    let offset = 44;
+    for (let i = 0; i < numFrames; i++) {
+      for (let ch = 0; ch < numChannels; ch++) {
+        let sample = channelData[ch][i];
+        sample = Math.max(-1, Math.min(1, sample));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+        offset += 2;
+      }
+    }
+    return new Blob([view], { type: "audio/wav" });
+  }
+
+  function drawWaveform(canvas, buffer) {
+    const ctx2 = canvas.getContext("2d");
+    const w = canvas.width, h = canvas.height;
+    ctx2.clearRect(0, 0, w, h);
+    const data = buffer.getChannelData(0);
+    const step = Math.max(1, Math.ceil(data.length / w));
+    ctx2.strokeStyle = "rgba(255,200,87,0.85)";
+    ctx2.lineWidth = 1;
+    ctx2.beginPath();
+    for (let x = 0; x < w; x++) {
+      let min = 1, max = -1;
+      const start = x * step;
+      for (let j = 0; j < step; j++) {
+        const idx = start + j;
+        if (idx >= data.length) break;
+        const v = data[idx];
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      if (max < min) { max = 0; min = 0; }
+      const y1 = (1 - (max + 1) / 2) * h;
+      const y2 = (1 - (min + 1) / 2) * h;
+      ctx2.moveTo(x + 0.5, y1);
+      ctx2.lineTo(x + 0.5, y2);
+    }
+    ctx2.stroke();
+  }
+
+  // ---------- playback engine ----------
+  function startLayerSource(layer, when, offset) {
+    const src = audioCtx.createBufferSource();
+    src.buffer = layer.buffer;
+    src.loop = true;
+    src.loopStart = 0;
+    src.loopEnd = loopDuration;
+    src.connect(layer.gainNode);
+    src.start(when, offset);
+    layer.sourceNode = src;
+  }
+
+  function startAllLayers(initialOffset) {
+    const lead = 0.05;
+    const when = audioCtx.currentTime + lead;
+    loopStartTime = when - initialOffset;
+    layers.forEach(function (layer) {
+      if (layer.sourceNode) { try { layer.sourceNode.stop(); } catch (e) {} }
+      startLayerSource(layer, when, initialOffset);
+    });
+    isPlaying = true;
+    startClickScheduler();
+  }
+
+  function pausePlayback() {
+    if (!isPlaying) return;
+    pausedOffset = mod(audioCtx.currentTime - loopStartTime, loopDuration);
+    layers.forEach(function (l) {
+      if (l.sourceNode) { try { l.sourceNode.stop(); } catch (e) {} l.sourceNode = null; }
+    });
+    isPlaying = false;
+    stopClickScheduler();
+  }
+
+  function updateMixGains() {
+    const anySolo = layers.some(function (l) { return l.solo; });
+    layers.forEach(function (l) {
+      let g = l.volume;
+      if (anySolo) { if (!l.solo) g = 0; }
+      else if (l.muted) { g = 0; }
+      l.gainNode.gain.setTargetAtTime(g, audioCtx.currentTime, 0.01);
+    });
+  }
+
+  // ---------- click track ----------
+  function startClickScheduler() {
+    nextClickTime = loopStartTime;
+    const now = audioCtx.currentTime;
+    if (nextClickTime <= now) {
+      const cycles = Math.ceil((now - nextClickTime) / loopDuration);
+      nextClickTime += cycles * loopDuration;
+    }
+    if (clickIntervalId) clearInterval(clickIntervalId);
+    clickIntervalId = setInterval(function () {
+      if (!clickEnabled) return;
+      while (nextClickTime < audioCtx.currentTime + 0.5) {
+        playClick(nextClickTime);
+        nextClickTime += loopDuration;
+      }
+    }, 100);
+  }
+  function stopClickScheduler() {
+    if (clickIntervalId) { clearInterval(clickIntervalId); clickIntervalId = null; }
+  }
+  function playClick(time) {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.frequency.value = 1800;
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime(0.2, time + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + 0.05);
+    osc.connect(g);
+    g.connect(audioCtx.destination);
+    osc.start(time);
+    osc.stop(time + 0.06);
+  }
+
+  // ---------- layers ----------
+  function addLayer(buffer) {
+    const id = nextLayerId++;
+    const gainNode = audioCtx.createGain();
+    gainNode.connect(masterGain);
+    const layer = { id: id, buffer: buffer, gainNode: gainNode, sourceNode: null, muted: false, solo: false, volume: 1 };
+    layers.push(layer);
+    if (isPlaying) {
+      const lead = 0.05;
+      const when = audioCtx.currentTime + lead;
+      const offset = mod(when - loopStartTime, loopDuration);
+      startLayerSource(layer, when, offset);
+    }
+    renderLayerRow(layer);
+    updateMixGains();
+  }
+
+  function deleteLayer(id) {
+    const idx = layers.findIndex(function (l) { return l.id === id; });
+    if (idx === -1) return;
+    const layer = layers[idx];
+    layers.splice(idx, 1);
+    if (layer.sourceNode) { try { layer.sourceNode.stop(); } catch (e) {} }
+    layer.gainNode.disconnect();
+    const row = document.getElementById("row-" + id);
+    if (row) row.remove();
+    if (layers.length === 0) clearAll(true);
+    else { renderMode(); }
+  }
+
+  function renderLayerRow(layer) {
+    const row = document.createElement("div");
+    row.className = "layer-row";
+    row.id = "row-" + layer.id;
+    row.innerHTML =
+      '<div class="layer-tag">L' + layer.id + '</div>' +
+      '<canvas class="layer-wave" width="120" height="34"></canvas>' +
+      '<div class="layer-controls">' +
+        '<button class="mini-btn mute-btn" aria-label="Mute layer ' + layer.id + '">M</button>' +
+        '<button class="mini-btn solo-btn" aria-label="Solo layer ' + layer.id + '">S</button>' +
+        '<input type="range" min="0" max="1.4" step="0.01" value="1" class="vol-slider" aria-label="Volume for layer ' + layer.id + '">' +
+        '<button class="mini-btn del-btn" aria-label="Delete layer ' + layer.id + '">×</button>' +
+      '</div>';
+    rack.insertBefore(row, rack.firstChild);
+    drawWaveform(row.querySelector(".layer-wave"), layer.buffer);
+    const muteBtn = row.querySelector(".mute-btn");
+    const soloBtn = row.querySelector(".solo-btn");
+    muteBtn.onclick = function () {
+      layer.muted = !layer.muted;
+      muteBtn.classList.toggle("active", layer.muted);
+      updateMixGains();
+    };
+    soloBtn.onclick = function () {
+      layer.solo = !layer.solo;
+      soloBtn.classList.toggle("active", layer.solo);
+      updateMixGains();
+    };
+    row.querySelector(".vol-slider").oninput = function (e) {
+      layer.volume = parseFloat(e.target.value);
+      updateMixGains();
+    };
+    row.querySelector(".del-btn").onclick = function () { deleteLayer(layer.id); };
+  }
+
+  // ---------- recording: first loop ----------
+  function startFirstLoopRecording() {
+    mode = "recordingFirst";
+    renderMode();
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(micStream, recorderOptions);
+    mediaRecorder.ondataavailable = function (e) { if (e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.onstop = onFirstLoopStop;
+    mediaRecorder.start();
+  }
+  function stopFirstLoopRecording() {
+    if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+  }
+  async function onFirstLoopStop() {
+    try {
+      const blob = new Blob(recordedChunks, { type: (recordedChunks[0] && recordedChunks[0].type) || "audio/webm" });
+      const arrayBuf = await blob.arrayBuffer();
+      const decoded = await audioCtx.decodeAudioData(arrayBuf);
+      if (decoded.duration < 0.4) {
+        mode = "idle";
+        renderMode();
+        setStatus("That was too short to use as a loop — hold it a little longer and try again.");
+        return;
+      }
+      loopDuration = decoded.duration;
+      addLayer(decoded);
+      startAllLayers(0);
+      mode = "ready";
+      renderMode();
+    } catch (err) {
+      console.error(err);
+      mode = "idle";
+      renderMode();
+      setStatus("Couldn't capture that loop — try again.");
+    }
+  }
+
+  // ---------- recording: overdub layers ----------
+  function armOverdub() {
+    if (mode !== "ready") return;
+    const now = audioCtx.currentTime;
+    const phase = mod(now - loopStartTime, loopDuration);
+    let wait = loopDuration - phase;
+    if (wait <= 0) wait = loopDuration;
+    mode = "armed";
+    renderMode();
+    armTimeoutId = setTimeout(startOverdubRecording, wait * 1000);
+  }
+  function startOverdubRecording() {
+    mode = "recordingOverdub";
+    renderMode();
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(micStream, recorderOptions);
+    mediaRecorder.ondataavailable = function (e) { if (e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.onstop = onOverdubStop;
+    mediaRecorder.start();
+    autoStopTimeoutId = setTimeout(function () {
+      if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+    }, loopDuration * 1000);
+  }
+  async function onOverdubStop() {
+    try {
+      const blob = new Blob(recordedChunks, { type: (recordedChunks[0] && recordedChunks[0].type) || "audio/webm" });
+      const arrayBuf = await blob.arrayBuffer();
+      const decoded = await audioCtx.decodeAudioData(arrayBuf);
+      const conformed = conformBuffer(decoded, loopDuration);
+      addLayer(conformed);
+      mode = "ready";
+      renderMode();
+    } catch (err) {
+      console.error(err);
+      mode = "ready";
+      renderMode();
+      setStatus("Couldn't capture that layer — try again.");
+    }
+  }
+  function cancelOverdub() {
+    if (armTimeoutId) { clearTimeout(armTimeoutId); armTimeoutId = null; }
+    if (autoStopTimeoutId) { clearTimeout(autoStopTimeoutId); autoStopTimeoutId = null; }
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      mediaRecorder.onstop = null;
+      mediaRecorder.stop();
+    }
+    mode = "ready";
+    renderMode();
+  }
+
+  // ---------- mode / UI ----------
+  function renderMode() {
+    mainBtn.classList.remove("state-idle", "state-rec", "state-ready", "state-armed");
+    cancelBtn.hidden = true;
+    mainBtn.disabled = false;
+    switch (mode) {
+      case "idle":
+        mainBtn.textContent = "● REC";
+        mainBtn.classList.add("state-idle");
+        setStatus("Record your first loop — tap REC, play your beat, tap again to finish.");
+        playPauseBtn.disabled = true;
+        break;
+      case "recordingFirst":
+        mainBtn.textContent = "■ STOP";
+        mainBtn.classList.add("state-rec");
+        setStatus("Recording your loop... tap STOP when you're done.");
+        playPauseBtn.disabled = true;
+        break;
+      case "ready":
+        mainBtn.textContent = "+ LAYER";
+        mainBtn.classList.add("state-ready");
+        setStatus(isPlaying
+          ? "Loop running — " + layers.length + (layers.length === 1 ? " layer" : " layers") + ". Tap + LAYER to add another."
+          : "Paused.");
+        playPauseBtn.disabled = false;
+        playPauseBtn.textContent = isPlaying ? "⏸" : "⏵";
+        break;
+      case "armed":
+        mainBtn.textContent = "···";
+        mainBtn.disabled = true;
+        mainBtn.classList.add("state-armed");
+        setStatus("Get ready — recording starts at the top of the loop.");
+        cancelBtn.hidden = false;
+        playPauseBtn.disabled = true;
+        break;
+      case "recordingOverdub":
+        mainBtn.textContent = "● REC";
+        mainBtn.disabled = true;
+        mainBtn.classList.add("state-rec");
+        setStatus("Recording layer " + (layers.length + 1) + "...");
+        cancelBtn.hidden = false;
+        playPauseBtn.disabled = true;
+        break;
+    }
+  }
+
+  function clearAll(skipConfirm) {
+    if (!skipConfirm && !confirm("Clear everything? This can't be undone.")) return;
+    layers.forEach(function (l) {
+      if (l.sourceNode) { try { l.sourceNode.stop(); } catch (e) {} }
+      l.gainNode.disconnect();
+    });
+    layers = [];
+    rack.innerHTML = "";
+    loopDuration = 0;
+    loopStartTime = 0;
+    isPlaying = false;
+    pausedOffset = 0;
+    stopClickScheduler();
+    mode = "idle";
+    renderMode();
+  }
+
+  // ---------- export ----------
+  async function exportSong() {
+    if (layers.length === 0) { setStatus("Nothing to export yet."); return; }
+    const repeatsStr = prompt("How many times should the loop repeat in the exported song?", "8");
+    if (repeatsStr === null) return;
+    const repeats = Math.max(1, parseInt(repeatsStr, 10) || 8);
+    setStatus("Rendering...");
+    const sampleRate = audioCtx.sampleRate;
+    const length = Math.ceil(loopDuration * repeats * sampleRate);
+    const offlineCtx = new OfflineAudioContext(2, length, sampleRate);
+    const anySolo = layers.some(function (l) { return l.solo; });
+    layers.forEach(function (l) {
+      let g = l.volume;
+      if (anySolo) { if (!l.solo) g = 0; } else if (l.muted) { g = 0; }
+      if (g <= 0) return;
+      const src = offlineCtx.createBufferSource();
+      src.buffer = l.buffer;
+      src.loop = true;
+      src.loopStart = 0;
+      src.loopEnd = loopDuration;
+      const gain = offlineCtx.createGain();
+      gain.gain.value = g;
+      src.connect(gain).connect(offlineCtx.destination);
+      src.start(0);
+    });
+    try {
+      const rendered = await offlineCtx.startRendering();
+      const wavBlob = encodeWav(rendered);
+      const url = URL.createObjectURL(wavBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "strata-song.wav";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+      setStatus("Exported — check your downloads.");
+    } catch (err) {
+      console.error(err);
+      setStatus("Export failed — try again.");
+    }
+  }
+
+  // ---------- animation loop ----------
+  function tick() {
+    requestAnimationFrame(tick);
+    if (!audioCtx) return;
+    if (analyser) {
+      analyser.getByteTimeDomainData(levelData);
+      let peak = 0;
+      for (let i = 0; i < levelData.length; i++) {
+        const v = Math.abs(levelData[i] - 128) / 128;
+        if (v > peak) peak = v;
+      }
+      levelBar.style.width = Math.min(100, peak * 140) + "%";
+    }
+    if (loopDuration > 0) {
+      const phase = isPlaying ? mod(audioCtx.currentTime - loopStartTime, loopDuration) : pausedOffset;
+      const frac = phase / loopDuration;
+      ringFg.style.strokeDashoffset = String(RING_CIRC * (1 - frac));
+      readout.textContent = fmt(phase) + " / " + fmt(loopDuration);
+    }
+  }
+
+  // ---------- wiring ----------
+  startBtn.addEventListener("click", async function () {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      await audioCtx.resume();
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 1;
+      masterGain.connect(audioCtx.destination);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      const micSource = audioCtx.createMediaStreamSource(micStream);
+      micSource.connect(analyser);
+      levelData = new Uint8Array(analyser.fftSize);
+      recorderOptions = pickRecorderOptions();
+      permScreen.hidden = true;
+      mainScreen.hidden = false;
+      mode = "idle";
+      renderMode();
+      requestAnimationFrame(tick);
+    } catch (err) {
+      console.error(err);
+      permError.textContent = "Microphone access was blocked. Allow it for this page in your browser settings, then reload and try again.";
+    }
+  });
+
+  mainBtn.addEventListener("click", function () {
+    if (mode === "idle") startFirstLoopRecording();
+    else if (mode === "recordingFirst") stopFirstLoopRecording();
+    else if (mode === "ready") armOverdub();
+  });
+  cancelBtn.addEventListener("click", cancelOverdub);
+  playPauseBtn.addEventListener("click", function () {
+    if (mode !== "ready") return;
+    if (isPlaying) pausePlayback(); else startAllLayers(pausedOffset);
+    renderMode();
+  });
+  clickToggle.addEventListener("change", function (e) { clickEnabled = e.target.checked; });
+  exportBtn.addEventListener("click", exportSong);
+  clearBtn.addEventListener("click", function () { clearAll(false); });
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  }
+
+})();
+</script>
+</body>
+</html>
