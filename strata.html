@@ -77,13 +77,15 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
 .readout{font-family:var(--mono);font-size:15px;color:var(--ink);margin-top:12px;letter-spacing:0.02em;}
 .status{font-size:13px;color:var(--muted);text-align:center;max-width:320px;min-height:34px;margin:6px auto 0;line-height:1.45;}
 
-.transport{display:flex;align-items:center;gap:14px;justify-content:center;margin:12px 0 18px;}
+.transport{display:flex;align-items:center;gap:14px;justify-content:center;margin:12px 0 10px;}
 #playPauseBtn{
   width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--panel);
   color:var(--ink);font-size:16px;cursor:pointer;flex-shrink:0;
 }
 #playPauseBtn:disabled{opacity:0.35;cursor:default;}
 #playPauseBtn:focus-visible{outline:2px solid var(--amber);}
+.master-vol{flex:1;max-width:220px;accent-color:var(--amber);}
+.transport-secondary{display:flex;align-items:center;gap:14px;justify-content:center;margin:0 0 18px;}
 .click-toggle{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);font-family:var(--mono);white-space:nowrap;}
 .level-meter{flex:1;max-width:90px;height:8px;background:var(--panel-2);border-radius:4px;overflow:hidden;}
 #levelBar{height:100%;width:0%;background:var(--amber);}
@@ -94,27 +96,50 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
 .mult-btn.active{background:var(--amber);color:#1a1410;border-color:var(--amber);}
 .mult-btn:disabled{opacity:0.4;cursor:default;}
 
-.rack{display:flex;flex-direction:column;gap:8px;margin-bottom:18px;}
-.layer-row{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;}
-.layer-tag{font-family:var(--mono);font-size:12px;color:var(--amber);width:auto;min-width:26px;flex-shrink:0;white-space:nowrap;}
+.rack{display:flex;flex-direction:column;gap:10px;margin-bottom:18px;}
+.layer-row{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:10px;padding:10px 10px;}
+.layer-tag{font-family:var(--mono);font-size:12px;width:auto;min-width:26px;flex-shrink:0;white-space:nowrap;cursor:pointer;border-bottom:1px dotted currentColor;padding-bottom:1px;}
 .layer-wave{flex-shrink:0;border-radius:4px;background:var(--panel-2);}
-.layer-controls{display:flex;align-items:center;gap:6px;flex:1;min-width:0;}
-.mini-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:12px;font-family:var(--mono);cursor:pointer;flex-shrink:0;}
+.layer-controls{display:flex;align-items:center;gap:8px;flex:1;min-width:0;}
+.mini-btn{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:13px;font-family:var(--mono);cursor:pointer;flex-shrink:0;}
 .mini-btn.active.mute-btn{background:var(--rec);color:#fff;border-color:var(--rec);}
 .mini-btn.active.solo-btn{background:var(--amber);color:#1a1410;border-color:var(--amber);}
-.vol-slider{flex:1;min-width:0;accent-color:var(--amber);}
-.del-btn{color:var(--muted);font-size:15px;}
+.vol-slider{flex:1;min-width:0;height:34px;accent-color:var(--amber);}
+.del-btn{color:var(--muted);font-size:17px;}
 .del-btn:hover{color:var(--rec);}
 
-.toolbar{display:flex;gap:10px;}
+.toolbar{display:flex;gap:8px;}
 .toolbar button{
-  flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
-  color:var(--ink);font-family:var(--body);font-weight:600;font-size:13px;cursor:pointer;
+  flex:1;padding:12px 6px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
+  color:var(--ink);font-family:var(--body);font-weight:600;font-size:12.5px;cursor:pointer;
 }
 .toolbar button:hover{border-color:var(--amber);}
 .toolbar button:focus-visible{outline:2px solid var(--amber);}
+.toolbar button:disabled{opacity:0.4;cursor:default;}
 .hint{font-size:11px;color:var(--muted);text-align:center;margin-top:16px;line-height:1.6;}
 [hidden]{display:none !important;}
+
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(10,8,14,0.72);backdrop-filter:blur(2px);
+  display:flex;align-items:center;justify-content:center;padding:24px;z-index:50;
+}
+.modal-card{
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:22px 20px;max-width:340px;width:100%;box-shadow:0 16px 40px rgba(0,0,0,0.5);
+}
+.modal-title{font-family:var(--display);font-weight:700;font-size:17px;margin-bottom:8px;}
+.modal-body{font-size:13.5px;color:var(--muted);line-height:1.5;margin-bottom:14px;}
+.modal-input{
+  width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+  color:var(--ink);font-family:var(--mono);font-size:14px;padding:10px 12px;margin-bottom:16px;
+}
+.modal-input:focus-visible{outline:2px solid var(--amber);}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+.modal-btn{
+  padding:10px 18px;border-radius:8px;border:1px solid var(--line);background:transparent;
+  color:var(--ink);font-family:var(--body);font-weight:600;font-size:13px;cursor:pointer;
+}
+.modal-btn.primary{background:var(--amber);color:#1a1410;border-color:var(--amber);}
 </style>
 </head>
 <body>
@@ -148,6 +173,9 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
 
       <div class="transport">
         <button id="playPauseBtn" disabled>⏵</button>
+        <input type="range" id="masterVol" class="master-vol" min="0" max="1.3" step="0.01" value="1" aria-label="Master volume">
+      </div>
+      <div class="transport-secondary">
         <label class="click-toggle"><input type="checkbox" id="clickToggle" checked> click</label>
         <div class="level-meter" title="Mic input level"><div id="levelBar"></div></div>
       </div>
@@ -163,12 +191,22 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
 
       <div class="toolbar">
         <button id="exportBtn">Export WAV</button>
+        <button id="undoBtn">Undo last</button>
         <button id="clearBtn">Clear all</button>
       </div>
 
-      <p class="hint">Nothing here is saved automatically &mdash; export your song as a WAV before you close this tab. Deleting a layer doesn't change the loop length, so it's safe to redo any pass.</p>
+      <p class="hint">Tap a layer's name to rename it. Your song autosaves on this device as you go — export a WAV whenever you want a copy you can keep elsewhere.</p>
     </section>
   </main>
+</div>
+
+<div class="modal-overlay" id="modalOverlay" hidden>
+  <div class="modal-card">
+    <div class="modal-title" id="modalTitle"></div>
+    <div class="modal-body" id="modalBody"></div>
+    <input class="modal-input" id="modalInput" hidden>
+    <div class="modal-actions" id="modalActions"></div>
+  </div>
 </div>
 
 <script>
@@ -190,6 +228,9 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
   let autoStopTimeoutId = null;
   let countdownTarget = 0, countdownIntervalId = null, countdownTimeoutId = null, lastBeepInt = null;
   let clickEnabled = true, nextClickTime = 0, clickIntervalId = null;
+  let wakeLock = null;
+  let saveDebounceId = null;
+  const LAYER_COLORS = ["#ffc857", "#7dd3fc", "#c4b5fd", "#86efac", "#fda4af", "#fcd34d"];
   const COUNT_IN_SECONDS = 3;
   const RING_R = 86;
   const RING_CIRC = 2 * Math.PI * RING_R;
@@ -208,9 +249,16 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
   const levelBar = document.getElementById("levelBar");
   const rack = document.getElementById("rack");
   const exportBtn = document.getElementById("exportBtn");
+  const undoBtn = document.getElementById("undoBtn");
   const clearBtn = document.getElementById("clearBtn");
+  const masterVol = document.getElementById("masterVol");
   const multiplierRow = document.getElementById("multiplierRow");
   const multBtns = Array.prototype.slice.call(document.querySelectorAll(".mult-btn"));
+  const modalOverlay = document.getElementById("modalOverlay");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalBody = document.getElementById("modalBody");
+  const modalInput = document.getElementById("modalInput");
+  const modalActions = document.getElementById("modalActions");
   const ringFg = document.getElementById("ringFg");
   ringFg.style.strokeDasharray = RING_CIRC + " " + RING_CIRC;
   ringFg.style.strokeDashoffset = RING_CIRC;
@@ -223,6 +271,57 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     return m + ":" + sec;
   }
   function setStatus(msg) { statusEl.textContent = msg; }
+
+  function showModal(opts) {
+    return new Promise(function (resolve) {
+      modalTitle.textContent = opts.title || "";
+      modalBody.textContent = opts.body || "";
+      if (opts.inputType) {
+        modalInput.hidden = false;
+        modalInput.type = opts.inputType;
+        modalInput.value = opts.inputValue != null ? opts.inputValue : "";
+        modalInput.placeholder = opts.inputPlaceholder || "";
+      } else {
+        modalInput.hidden = true;
+      }
+      modalActions.innerHTML = "";
+      (opts.buttons || []).forEach(function (b) {
+        const btn = document.createElement("button");
+        btn.textContent = b.label;
+        btn.className = b.primary ? "modal-btn primary" : "modal-btn";
+        btn.onclick = function () {
+          modalOverlay.hidden = true;
+          resolve(b.value === "__input__" ? modalInput.value : b.value);
+        };
+        modalActions.appendChild(btn);
+      });
+      modalOverlay.hidden = false;
+      if (opts.inputType) {
+        modalInput.focus();
+        modalInput.select();
+      }
+    });
+  }
+
+  function vibrate(pattern) {
+    if (navigator.vibrate) {
+      try { navigator.vibrate(pattern); } catch (e) {}
+    }
+  }
+
+  async function requestWakeLock() {
+    try {
+      if ("wakeLock" in navigator) {
+        wakeLock = await navigator.wakeLock.request("screen");
+        wakeLock.addEventListener("release", function () { wakeLock = null; });
+      }
+    } catch (e) { /* not critical — ignore */ }
+  }
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible" && audioCtx && !wakeLock) requestWakeLock();
+  });
+
+  function colorForLayer(id) { return LAYER_COLORS[(id - 1) % LAYER_COLORS.length]; }
   function pickRecorderOptions() {
     const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/aac"];
     for (const c of candidates) {
@@ -284,13 +383,13 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     return new Blob([view], { type: "audio/wav" });
   }
 
-  function drawWaveform(canvas, buffer) {
+  function drawWaveform(canvas, buffer, color) {
     const ctx2 = canvas.getContext("2d");
     const w = canvas.width, h = canvas.height;
     ctx2.clearRect(0, 0, w, h);
     const data = buffer.getChannelData(0);
     const step = Math.max(1, Math.ceil(data.length / w));
-    ctx2.strokeStyle = "rgba(255,200,87,0.85)";
+    ctx2.strokeStyle = color || "rgba(255,200,87,0.85)";
     ctx2.lineWidth = 1;
     ctx2.beginPath();
     for (let x = 0; x < w; x++) {
@@ -310,6 +409,98 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
       ctx2.lineTo(x + 0.5, y2);
     }
     ctx2.stroke();
+  }
+
+  // ---------- session persistence (IndexedDB) ----------
+  const DB_NAME = "strata-db", STORE_NAME = "session";
+  function openDB() {
+    return new Promise(function (resolve, reject) {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = function () { req.result.createObjectStore(STORE_NAME); };
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error); };
+    });
+  }
+  function txDone(tx) {
+    return new Promise(function (resolve, reject) {
+      tx.oncomplete = function () { resolve(); };
+      tx.onerror = function () { reject(tx.error); };
+    });
+  }
+  async function saveSession() {
+    if (!loopDuration || layers.length === 0) return;
+    try {
+      const db = await openDB();
+      const layerData = [];
+      for (const l of layers) {
+        const wavBlob = encodeWav(l.buffer);
+        const buf = await wavBlob.arrayBuffer();
+        layerData.push({ id: l.id, cycleLength: l.cycleLength, muted: l.muted, solo: l.solo, volume: l.volume, name: l.name, wav: buf });
+      }
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      tx.objectStore(STORE_NAME).put({
+        loopDuration: loopDuration, nextLayerId: nextLayerId, selectedMultiplier: selectedMultiplier,
+        layers: layerData, savedAt: Date.now()
+      }, "current");
+      await txDone(tx);
+    } catch (e) { console.error("autosave failed", e); }
+  }
+  function scheduleSave() {
+    if (saveDebounceId) clearTimeout(saveDebounceId);
+    saveDebounceId = setTimeout(saveSession, 500);
+  }
+  async function loadSession() {
+    try {
+      const db = await openDB();
+      const tx = db.transaction(STORE_NAME, "readonly");
+      const req = tx.objectStore(STORE_NAME).get("current");
+      return await new Promise(function (resolve, reject) {
+        req.onsuccess = function () { resolve(req.result || null); };
+        req.onerror = function () { reject(req.error); };
+      });
+    } catch (e) { console.error("session load failed", e); return null; }
+  }
+  async function clearSession() {
+    try {
+      const db = await openDB();
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      tx.objectStore(STORE_NAME).delete("current");
+      await txDone(tx);
+    } catch (e) {}
+  }
+  async function restoreSessionIfAny() {
+    const data = await loadSession();
+    if (!data || !data.layers || data.layers.length === 0) return;
+    const wantsRestore = await showModal({
+      title: "Resume your last session?",
+      body: data.layers.length + " layer" + (data.layers.length === 1 ? "" : "s") + " saved from before. Restore them, or start fresh?",
+      buttons: [{ label: "Start fresh", value: false }, { label: "Restore", value: true, primary: true }]
+    });
+    if (!wantsRestore) { clearSession(); return; }
+    loopDuration = data.loopDuration;
+    nextLayerId = data.nextLayerId || (data.layers.length + 1);
+    selectedMultiplier = data.selectedMultiplier || 1;
+    for (const ld of data.layers) {
+      try {
+        const decoded = await audioCtx.decodeAudioData(ld.wav.slice(0));
+        const gainNode = audioCtx.createGain();
+        gainNode.connect(masterGain);
+        const layer = {
+          id: ld.id, buffer: decoded, cycleLength: ld.cycleLength, gainNode: gainNode,
+          sourceNode: null, muted: ld.muted, solo: ld.solo, volume: ld.volume, name: ld.name
+        };
+        layers.push(layer);
+        renderLayerRow(layer);
+      } catch (e) { console.error("could not restore a layer", e); }
+    }
+    if (layers.length > 0) {
+      loopStartTime = audioCtx.currentTime;
+      multiplierRow.hidden = false;
+      multBtns.forEach(function (b) { b.classList.toggle("active", parseInt(b.getAttribute("data-mult"), 10) === selectedMultiplier); });
+      updateMixGains();
+      mode = "ready";
+      renderMode();
+    }
   }
 
   // ---------- playback engine ----------
@@ -444,7 +635,7 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     const id = nextLayerId++;
     const gainNode = audioCtx.createGain();
     gainNode.connect(masterGain);
-    const layer = { id: id, buffer: buffer, cycleLength: cycleLength, gainNode: gainNode, sourceNode: null, muted: false, solo: false, volume: 1 };
+    const layer = { id: id, buffer: buffer, cycleLength: cycleLength, gainNode: gainNode, sourceNode: null, muted: false, solo: false, volume: 1, name: null };
     layers.push(layer);
     if (isPlaying) {
       const lead = 0.05;
@@ -454,6 +645,8 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     }
     renderLayerRow(layer);
     updateMixGains();
+    scheduleSave();
+    vibrate([15, 30, 15]);
   }
 
   function deleteLayer(id) {
@@ -465,42 +658,71 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     layer.gainNode.disconnect();
     const row = document.getElementById("row-" + id);
     if (row) row.remove();
-    if (layers.length === 0) clearAll(true);
-    else { renderMode(); }
+    if (layers.length === 0) { clearAll(true); }
+    else { renderMode(); scheduleSave(); }
+  }
+  function undoLastLayer() {
+    if (layers.length === 0) return;
+    deleteLayer(layers[layers.length - 1].id);
+  }
+
+  function layerTagText(layer) {
+    const mult = Math.round(layer.cycleLength / loopDuration);
+    const base = layer.name || ("L" + layer.id);
+    return base + (mult > 1 ? " · " + mult + "×" : "");
   }
 
   function renderLayerRow(layer) {
     const row = document.createElement("div");
     row.className = "layer-row";
     row.id = "row-" + layer.id;
-    const mult = Math.round(layer.cycleLength / loopDuration);
-    const tag = "L" + layer.id + (mult > 1 ? " · " + mult + "×" : "");
+    const color = colorForLayer(layer.id);
+    row.style.borderLeftColor = color;
     row.innerHTML =
-      '<div class="layer-tag">' + tag + '</div>' +
+      '<div class="layer-tag" style="color:' + color + '">' + layerTagText(layer) + '</div>' +
       '<canvas class="layer-wave" width="120" height="34"></canvas>' +
       '<div class="layer-controls">' +
         '<button class="mini-btn mute-btn" aria-label="Mute layer ' + layer.id + '">M</button>' +
         '<button class="mini-btn solo-btn" aria-label="Solo layer ' + layer.id + '">S</button>' +
-        '<input type="range" min="0" max="1.4" step="0.01" value="1" class="vol-slider" aria-label="Volume for layer ' + layer.id + '">' +
+        '<input type="range" min="0" max="1.4" step="0.01" value="' + layer.volume + '" class="vol-slider" aria-label="Volume for layer ' + layer.id + '">' +
         '<button class="mini-btn del-btn" aria-label="Delete layer ' + layer.id + '">×</button>' +
       '</div>';
     rack.insertBefore(row, rack.firstChild);
-    drawWaveform(row.querySelector(".layer-wave"), layer.buffer);
+    drawWaveform(row.querySelector(".layer-wave"), layer.buffer, color);
+    const tagEl = row.querySelector(".layer-tag");
     const muteBtn = row.querySelector(".mute-btn");
     const soloBtn = row.querySelector(".solo-btn");
+    muteBtn.classList.toggle("active", layer.muted);
+    soloBtn.classList.toggle("active", layer.solo);
+    tagEl.onclick = async function () {
+      const name = await showModal({
+        title: "Rename layer",
+        inputType: "text",
+        inputValue: layer.name || ("Layer " + layer.id),
+        buttons: [{ label: "Cancel", value: null }, { label: "Save", value: "__input__", primary: true }]
+      });
+      if (name && name.trim()) {
+        layer.name = name.trim();
+        tagEl.textContent = layerTagText(layer);
+        scheduleSave();
+      }
+    };
     muteBtn.onclick = function () {
       layer.muted = !layer.muted;
       muteBtn.classList.toggle("active", layer.muted);
       updateMixGains();
+      scheduleSave();
     };
     soloBtn.onclick = function () {
       layer.solo = !layer.solo;
       soloBtn.classList.toggle("active", layer.solo);
       updateMixGains();
+      scheduleSave();
     };
     row.querySelector(".vol-slider").oninput = function (e) {
       layer.volume = parseFloat(e.target.value);
       updateMixGains();
+      scheduleSave();
     };
     row.querySelector(".del-btn").onclick = function () { deleteLayer(layer.id); };
   }
@@ -515,6 +737,7 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
   function startFirstLoopRecording() {
     mode = "recordingFirst";
     renderMode();
+    vibrate(40);
     recordedChunks = [];
     mediaRecorder = new MediaRecorder(micStream, recorderOptions);
     mediaRecorder.ondataavailable = function (e) { if (e.data.size > 0) recordedChunks.push(e.data); };
@@ -565,6 +788,7 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
   function startOverdubRecording() {
     mode = "recordingOverdub";
     renderMode();
+    vibrate(40);
     recordedChunks = [];
     mediaRecorder = new MediaRecorder(micStream, recorderOptions);
     mediaRecorder.ondataavailable = function (e) { if (e.data.size > 0) recordedChunks.push(e.data); };
@@ -608,6 +832,10 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     cancelBtn.hidden = true;
     mainBtn.disabled = false;
     multBtns.forEach(function (b) { b.disabled = mode !== "ready"; });
+    const busy = mode === "countIn" || mode === "armed" || mode === "recordingFirst" || mode === "recordingOverdub";
+    exportBtn.disabled = busy;
+    undoBtn.disabled = busy;
+    clearBtn.disabled = busy;
     switch (mode) {
       case "idle":
         mainBtn.textContent = "● REC";
@@ -655,8 +883,15 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     }
   }
 
-  function clearAll(skipConfirm) {
-    if (!skipConfirm && !confirm("Clear everything? This can't be undone.")) return;
+  async function clearAll(skipConfirm) {
+    if (!skipConfirm) {
+      const ok = await showModal({
+        title: "Clear everything?",
+        body: "This removes every layer and can't be undone.",
+        buttons: [{ label: "Cancel", value: false }, { label: "Clear", value: true, primary: true }]
+      });
+      if (!ok) return;
+    }
     layers.forEach(function (l) {
       if (l.sourceNode) { try { l.sourceNode.stop(); } catch (e) {} }
       l.gainNode.disconnect();
@@ -669,6 +904,7 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     pausedDisplayPhase = 0;
     multiplierRow.hidden = true;
     stopClickScheduler();
+    clearSession();
     mode = "idle";
     renderMode();
   }
@@ -676,7 +912,13 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
   // ---------- export ----------
   async function exportSong() {
     if (layers.length === 0) { setStatus("Nothing to export yet."); return; }
-    const repeatsStr = prompt("How many times should the loop repeat in the exported song?", "8");
+    const repeatsStr = await showModal({
+      title: "Export song",
+      body: "How many times should the loop repeat in the exported file?",
+      inputType: "number",
+      inputValue: "8",
+      buttons: [{ label: "Cancel", value: null }, { label: "Export", value: "__input__", primary: true }]
+    });
     if (repeatsStr === null) return;
     const repeats = Math.max(1, parseInt(repeatsStr, 10) || 8);
     setStatus("Rendering...");
@@ -763,6 +1005,8 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
       mode = "idle";
       renderMode();
       requestAnimationFrame(tick);
+      requestWakeLock();
+      restoreSessionIfAny();
     } catch (err) {
       console.error(err);
       permError.textContent = "Microphone access was blocked. Allow it for this page in your browser settings, then reload and try again.";
@@ -781,7 +1025,11 @@ header{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bott
     renderMode();
   });
   clickToggle.addEventListener("change", function (e) { clickEnabled = e.target.checked; });
+  masterVol.addEventListener("input", function (e) {
+    if (masterGain) masterGain.gain.setTargetAtTime(parseFloat(e.target.value), audioCtx.currentTime, 0.01);
+  });
   exportBtn.addEventListener("click", exportSong);
+  undoBtn.addEventListener("click", undoLastLayer);
   clearBtn.addEventListener("click", function () { clearAll(false); });
   multBtns.forEach(function (btn) {
     btn.addEventListener("click", function () {
